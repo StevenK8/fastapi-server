@@ -16,4 +16,6 @@ uvicorn main:app --reload --host 192.168.1.IP
 ```
 
 4. Accès à la doc:
-##http://192.168.1.IP:8000/docs
+```bash
+http://192.168.1.IP:8000/docs
+```
