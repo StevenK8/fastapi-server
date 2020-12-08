@@ -1,16 +1,16 @@
 # Timelapse
 
-1. Installation de docker:
+1. Installation de FastAPI:
 ```bash
-`sudo curl -sSL https://get.docker.com/ | sh`
+pip3 install fastapi[all]
 ```
 
-2. Build de l'image FastAPI:
+2. Ajout de uvicorn à la variable $PATH:
 ```bash
-docker build -t fastapi .
+export PATH=/usr/local/bin:/usr/local/sbin:/home/pi/.local/bin:$PATH
 ```
 
-3. Démarrage d'un conteneur basé sur cette image:
+3. Démarrage du serveur web:
 ```bash
-docker run -d --name timelapse -p 80:80 fastapi
+uvicorn main:app --reload
 ```
