@@ -23,6 +23,6 @@ http://192.168.1.IP:8000/docs
 ```
 
 ## Documentation de FastAPI
-```bash
-https://fastapi.tiangolo.com/
-```
+
+[FastAPI](https://fastapi.tiangolo.com/)
+
