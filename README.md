@@ -1,5 +1,7 @@
 # Timelapse
 
+## Raspberry Pi
+
 1. Installation de FastAPI:
 ```bash
 pip3 install fastapi[all]
@@ -18,4 +20,9 @@ uvicorn main:app --reload --host 192.168.1.IP
 4. Accès à la doc:
 ```bash
 http://192.168.1.IP:8000/docs
+```
+
+## Documentation de FastAPI
+```bash
+https://fastapi.tiangolo.com/
 ```
