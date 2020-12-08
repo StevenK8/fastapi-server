@@ -7,10 +7,10 @@
 
 2. Build de l'image FastAPI:
 ```bash
-docker build -t timelapse .
+docker build -t fastapi .
 ```
 
 3. Démarrage d'un conteneur basé sur cette image:
 ```bash
-docker run -d --name timelapse-fastapi -p 80:80 timelapse
+docker run -d --name timelapse -p 80:80 fastapi
 ```
