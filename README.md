@@ -30,6 +30,8 @@ export PATH=/usr/local/bin:/usr/local/sbin:/home/pi/.local/bin:$PATH
 
 5. Démarrage du serveur web:
 ```bash
+cd Timelapse/app
+
 uvicorn main:app --reload --host 192.168.1.IP
 ```
 
