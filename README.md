@@ -6,9 +6,7 @@
 ```bash
 sudo apt install python3-pip
 
-python3 -m pip install --upgrade pip
-
-python3 -m pip install --no-use-pep517 bcrypt
+python3 -m pip install --upgrade pip bcrypt
 ```
 
 2. Installation de rust:
@@ -22,7 +20,7 @@ rustup default nightly
 
 3. Installation de FastAPI:
 ```bash
-python3 -m pip install fastapi[all]
+python3 -m pip install fastapi uvicorn
 ```
 
 4. Ajout de uvicorn à la variable $PATH:
