@@ -2,12 +2,17 @@
 
 ## Raspberry Pi
 
-1. Installation de pip:
+1. Installation de dépendances:
 ```bash
 sudo apt install python3-pip
 
 python3 -m pip install --upgrade pip bcrypt
 ```
+
+```bash
+sudo apt install python3-picamera
+```
+
 
 2. Installation de rust:
 ```bash
@@ -32,12 +37,12 @@ export PATH=/usr/local/bin:/usr/local/sbin:/home/pi/.local/bin:$PATH
 ```bash
 cd Timelapse/app
 
-uvicorn main:app --reload --host 192.168.1.IP
+uvicorn main:app --reload --host 192.168.1.21
 ```
 
 6. Accès à la doc:
 ```bash
-http://192.168.1.IP:8000/docs
+http://192.168.1.21:8000/docs
 ```
 
 ## Documentation de FastAPI
