@@ -14,12 +14,11 @@ import picamera
 from datetime import datetime
 from time import sleep
 
-# Variables
+# Variables globales
 API_KEY = "!$j;,=QzViep^\ZP~9_pWg[[{8p*3d9ZP9NxxB5XFDNpB5Btv~"
 API_KEY_NAME = "access_token"
 COOKIE_DOMAIN = "ryzen.ddns.net"
 
-__is_running__ = False
 
 api_key_query = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
@@ -38,6 +37,10 @@ class Item(BaseModel):
     name: str
     price: float
     is_offer: Optional[bool] = None
+
+class Data():
+    isRunning : bool = False
+    stopTimelapse : bool = False
 
 #  Fonctions
 
@@ -64,24 +67,7 @@ async def get_api_key(
 def read_root():
     return {"Hello": "World"}
 
-@app.get("/login", tags=["login"])
-async def get_open_api_endpoint(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    response = JSONResponse("Vous êtes connecté.")
-    response.set_cookie(
-        API_KEY_NAME,
-        value=api_key,
-        domain=COOKIE_DOMAIN,
-        httponly=True,
-        max_age=1800,
-        expires=1800,
-    )
-    return response
 
-@app.get("/logout", tags=["login"])
-async def route_logout_and_remove_cookie():
-    response = RedirectResponse(url="/")
-    response.delete_cookie(API_KEY_NAME, domain=COOKIE_DOMAIN)
-    return response
 
 @app.get("/items/{item_id}")
 def read_item(item_id: int, q: Optional[str] = None):
@@ -97,19 +83,28 @@ def update_item(item_id: int, item: Item):
 async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True):
     start_time = time.time()
     # Take pictures
+    stopTimelapse = False
     background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance)
     return "Timelapse démarré"
 
 
 @app.get("/timelapse/status/", tags=["timelapse"])
 def is_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    return __is_running__
+    return Data.isRunning
 
 
 @app.get("/timelapse/stop/", tags=["timelapse"])
 def stop_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    proc.kill()
+    Data.stopTimelapse = True
+    return "Timelapse arrété"
 
+def get_tasks():
+    tasks = getattr(g, '_tasks', None)
+    if (tasks is None):
+        tasks = BackgroundTasks()                                                                                                                                                                                                        
+    return tasks
+
+# Fonctions de Timelapse
 
 def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
     camera.iso = iso
@@ -127,7 +122,7 @@ def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
     return camera
 
 def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance):
-    __is_running__ = True
+    Data.isRunning = True
     count = length_in_seconds / interval_in_seconds
     logging.info('Taking {} shots...'.format(count))
     now = datetime.now()
@@ -144,7 +139,8 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
         for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
             time.sleep(interval_in_seconds) # wait <interval_in_seconds> seconds
             count -= 1
-            if count <= 0:
+            if count <= 0 or Data.stopTimelapse:
+                Data.stopTimelapse = False
                 break
 
-    __is_running__ = False
+    Data.isRunning = False
