@@ -5,6 +5,9 @@ from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, AP
 from starlette.status import HTTP_403_FORBIDDEN
 from starlette.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
+import adafruit_dht
+import board
+import json
 import subprocess
 import sys
 import os
@@ -32,6 +35,7 @@ __output_folder_name__= '/home/pi/camera/'
 
 __default_rotation__ = 0
 
+dhtDevice = adafruit_dht.DHT22(board.D18)
 
 class Item(BaseModel):
     name: str
@@ -98,11 +102,25 @@ def stop_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = 
     Data.stopTimelapse = True
     return "Timelapse arrété"
 
-def get_tasks():
-    tasks = getattr(g, '_tasks', None)
-    if (tasks is None):
-        tasks = BackgroundTasks()                                                                                                                                                                                                        
-    return tasks
+@app.get("/dht/value/", tags=["dht"])
+def get_th_value(api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    try:
+        # Print the values to the serial port
+        temperature_c = dhtDevice.temperature
+        humidity = dhtDevice.humidity
+        return(
+            "Température: {:.1f}°C    Humidité: {}% ".format(
+                temperature_c, humidity
+            )
+        )
+ 
+    except RuntimeError as error:
+        # Errors happen fairly often, DHT's are hard to read, just keep going
+        return(error.args[0])
+        time.sleep(2.0)
+    except Exception as error:
+        dhtDevice.exit()
+        raise error
 
 # Fonctions de Timelapse
 
