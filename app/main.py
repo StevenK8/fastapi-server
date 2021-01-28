@@ -17,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:
 
 now = datetime.now()
 
-__output_folder_name__= '/home/pi/camera/' + now.strftime("%d-%m-%Y_%H:%M:%S") + '/'
+__output_folder_name__= '/home/pi/camera/'
 
 __default_rotation__ = 0
 
@@ -49,9 +49,6 @@ def update_item(item_id: int, item: Item):
 @app.get("/timelapse/start/")
 def start_timelapse(length_in_seconds: int = 16, interval_in_seconds: int = 2, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True):
     start_time = time.time()
-    if not os.path.exists(__output_folder_name__):
-        os.makedirs(__output_folder_name__)
-    print(__output_folder_name__)
 
     # Take pictures
     logging.info('Opening camera...')
@@ -98,11 +95,17 @@ def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
 def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance):
     count = length_in_seconds / interval_in_seconds
     logging.info('Taking {} shots...'.format(count))
+    dateTimelapse = now.strftime("%d-%m-%Y_%H:%M:%S")
+    path = __output_folder_name__+dateTimelapse
+    if not os.path.exists(path):
+        os.makedirs(path)
+    print(path)
+
     with picamera.PiCamera() as camera:
         camera.start_preview()
         camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance)
         time.sleep(2)
-        for filename in camera.capture_continuous(__output_folder_name__+'/img{counter:06d}.jpg'):
+        for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
             time.sleep(interval_in_seconds) # wait <interval_in_seconds> seconds
             count -= 1
             if count <= 0:
