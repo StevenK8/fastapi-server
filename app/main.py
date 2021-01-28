@@ -17,7 +17,7 @@ logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:
 
 now = datetime.now()
 
-__output_folder_name__= '/home/pi/camera/' + now.strftime("%d-%m-%Y") + '/'
+__output_folder_name__= '/home/pi/camera/' + now.strftime("%d-%m-%Y_%H:%M:%S") + '/'
 
 __default_rotation__ = 0
 
