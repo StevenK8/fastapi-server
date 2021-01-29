@@ -4,13 +4,7 @@
 
 1. Installation de dépendances:
 ```bash
-sudo apt install python3-pip
-
-python3 -m pip install --upgrade pip bcrypt
-```
-
-```bash
-sudo apt install python3-picamera
+sudo apt install python3-pip python3-picamera; python3 -m pip install --upgrade pip bcrypt
 ```
 
 
@@ -49,3 +43,10 @@ http://192.168.1.21:8000/docs
 
 [FastAPI](https://fastapi.tiangolo.com/)
 
+# Capteur DHT
+
+## Dépendances
+
+```bash
+sudo apt install python-mysqldb
+```
