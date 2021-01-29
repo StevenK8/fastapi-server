@@ -1,5 +1,4 @@
 from typing import Optional
-from datetime import date
 from fastapi import FastAPI, Security, Depends, HTTPException, BackgroundTasks
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
 from starlette.status import HTTP_403_FORBIDDEN
@@ -7,9 +6,6 @@ from starlette.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 import adafruit_dht
 import board
-import json
-import subprocess
-import sys
 import os
 import time
 import logging
