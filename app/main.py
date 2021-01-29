@@ -6,6 +6,7 @@ from starlette.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 import adafruit_dht
 import board
+import MySQLdb
 import os
 import time
 import logging
@@ -80,11 +81,11 @@ def update_item(item_id: int, item: Item):
 
 
 @app.get("/timelapse/start/", tags=["timelapse"])
-async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True):
+async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True, description_album : str = "Aucune"):
     start_time = time.time()
     # Take pictures
-    stopTimelapse = False
-    background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance)
+    Data.stopTimelapse = False
+    background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album)
     return "Timelapse démarré"
 
 
@@ -120,6 +121,36 @@ def get_th_value(api_key: APIKey = Depends(get_api_key), access_token : str = No
 
 # Fonctions de Timelapse
 
+def create_album_db(description_album, db):
+    dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cur = db.cursor()
+    cur.execute("INSERT INTO albums(description, date) VALUES ('"+str(description_album)+"','"+dt+"')")
+    album = cur.lastrowid 
+    db.commit()
+    cur.close()
+    del cur
+    return album
+
+def send_photo_to_db(filename, album, db):
+    photo = read_file(filename)
+    dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cur = db.cursor()
+    sql = "INSERT INTO photos(id_capteur, id_album, photo, nom, measuredate) VALUES ('1',%s,%s,%s,%s)"
+    args = (str(album),photo,str(filename),dt, )
+    cur.execute(sql,args)
+    db.commit()
+    cur.close()
+    del cur
+
+def read_file(filename):
+    with open(filename, 'rb') as f:
+        photo = f.read()
+    return photo
+
+def connect_db():
+    return MySQLdb.connect(host='ryzen.ddns.net',user='timelapse', passwd='9_7b:r%HR-G%y@*U;>*3KDrU!-v,65U]Wq6H.xT5G}uiPAE}8k', db='timelapse')
+
+
 def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
     camera.iso = iso
     camera.rotation = rotation
@@ -135,22 +166,27 @@ def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
 
     return camera
 
-def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance):
+def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album):
     Data.isRunning = True
     count = length_in_seconds / interval_in_seconds
     logging.info('Taking {} shots...'.format(count))
-    now = datetime.now()
-    dateTimelapse = now.strftime("%d-%m-%Y_%H:%M:%S")
+
+    dateTimelapse = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     path = __output_folder_name__+dateTimelapse
     if not os.path.exists(path):
         os.makedirs(path)
     print(path)
+    db = connect_db()
+    album = create_album_db(description_album, db)
 
     with picamera.PiCamera() as camera:
         camera.start_preview()
         camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance)
         time.sleep(2)
         for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
+            # names = filename.split("/")
+            # send_photo_to_db(names[4]+'/'+names[5],album,db)
+            send_photo_to_db(filename,album,db)
             time.sleep(interval_in_seconds) # wait <interval_in_seconds> seconds
             count -= 1
             if count <= 0 or Data.stopTimelapse:
@@ -158,3 +194,4 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
                 break
 
     Data.isRunning = False
+    db.close()
