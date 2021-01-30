@@ -40,7 +40,8 @@ class Item(BaseModel):
     is_offer: Optional[bool] = None
 
 class Data():
-    isRunning : bool = False
+    currentPhoto : int = 0
+    totalPhotos : int = 0
     stopTimelapse : bool = False
 
 #  Fonctions
@@ -86,18 +87,21 @@ async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = D
     # Take pictures
     Data.stopTimelapse = False
     background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album)
-    return "Timelapse démarré"
+    return "Timelapse demarre"
 
 
 @app.get("/timelapse/status/", tags=["timelapse"])
 def is_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    return Data.isRunning
+    if (Data.currentPhoto>0):
+        return {"Photo N°": Data.currentPhoto, "Total de photos": Data.totalPhotos}
+    else:
+        return 0
 
 
 @app.get("/timelapse/stop/", tags=["timelapse"])
 def stop_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
     Data.stopTimelapse = True
-    return "Timelapse arrété"
+    return "Timelapse arrete"
 
 # @app.get("/dht/value/", tags=["dht"])
 # def get_th_value(api_key: APIKey = Depends(get_api_key), access_token : str = None):
@@ -167,10 +171,9 @@ def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
     return camera
 
 def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album):
-    Data.isRunning = True
     count = length_in_seconds / interval_in_seconds
     logging.info('Taking {} shots...'.format(count))
-
+    Data.totalPhotos = count
     dateTimelapse = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
     path = __output_folder_name__+dateTimelapse
     if not os.path.exists(path):
@@ -184,6 +187,7 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
         camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance)
         time.sleep(2)
         for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
+            Data.currentPhoto+=1
             # names = filename.split("/")
             # send_photo_to_db(names[4]+'/'+names[5],album,db)
             send_photo_to_db(filename,album,db)
@@ -193,5 +197,6 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
                 Data.stopTimelapse = False
                 break
 
-    Data.isRunning = False
+    Data.totalPhotos = 0
+    Data.currentPhoto = 0
     db.close()

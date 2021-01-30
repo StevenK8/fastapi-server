@@ -1,12 +1,11 @@
 # Timelapse
 
-## Raspberry Pi
+## FastAPI
 
 1. Installation de dépendances:
 ```bash
 sudo apt install python3-pip python3-picamera; python3 -m pip install --upgrade pip bcrypt
 ```
-
 
 2. Installation de rust:
 ```bash
@@ -38,6 +37,13 @@ uvicorn main:app --reload --host 192.168.1.21
 ```bash
 http://192.168.1.21:8000/docs
 ```
+
+## Rclone
+
+```bash
+curl https://rclone.org/install.sh | sudo bash
+```
+
 
 ## Documentation de FastAPI
 
