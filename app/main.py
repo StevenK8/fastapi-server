@@ -6,6 +6,7 @@ from starlette.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
 # import adafruit_dht
 # import board
+import subprocess
 import MySQLdb
 import os
 import time
@@ -82,12 +83,15 @@ def update_item(item_id: int, item: Item):
 
 
 @app.get("/timelapse/start/", tags=["timelapse"])
-async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True, description_album : str = "Aucune"):
-    start_time = time.time()
-    # Take pictures
-    Data.stopTimelapse = False
-    background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album)
-    return "Timelapse demarre"
+async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True, description_album : str = "Aucune", width : int = 2592, height : int = 1944):
+    if(Data.currentPhoto==0):
+        start_time = time.time()
+        # Take pictures
+        Data.stopTimelapse = False
+        background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album, width, height)
+        return "Timelapse demarre"
+    else:
+        return "Timelapse deja en cours."
 
 
 @app.get("/timelapse/status/", tags=["timelapse"])
@@ -136,11 +140,12 @@ def create_album_db(description_album, db):
     return album
 
 def send_photo_to_db(filename, album, db):
-    photo = read_file(filename)
+    # photo = read_file(filename)
     dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     cur = db.cursor()
-    sql = "INSERT INTO photos(id_capteur, id_album, photo, nom, measuredate) VALUES ('1',%s,%s,%s,%s)"
-    args = (str(album),photo,str(filename),dt, )
+    sql = "INSERT INTO photos(id_capteur, id_album, nom, measuredate) VALUES ('1',%s,%s,%s)"
+    names = filename.split("/")
+    args = (str(album), str(names[4]+'/'+names[5]),dt, )
     cur.execute(sql,args)
     db.commit()
     cur.close()
@@ -154,11 +159,17 @@ def read_file(filename):
 def connect_db():
     return MySQLdb.connect(host='ryzen.ddns.net',user='timelapse', passwd='9_7b:r%HR-G%y@*U;>*3KDrU!-v,65U]Wq6H.xT5G}uiPAE}8k', db='timelapse')
 
+def make_video(folder):
+    upload_photos = subprocess.Popen(["rclone", "move", "/home/pi/camera/", "timelapse:/home/timelapse/photos"])
+    upload_photos.wait()
+    subprocess.run("ssh timelapse@91.174.199.48 -p 49152 'bash /home/timelapse/photos/make_video.sh \""+folder+"\"'", shell=True, stdout=subprocess.PIPE, universal_newlines=True)
+    
 
-def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
+def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance, width, height):
     camera.iso = iso
     camera.rotation = rotation
     camera.shutter_speed = shutter_speed
+    camera.resolution = (width, height)
 
     if(shutter_speed != 0):
         # Sleep to allow the shutter speed to take effect correctly.
@@ -170,7 +181,7 @@ def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance):
 
     return camera
 
-def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album):
+def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album, width, height):
     count = length_in_seconds / interval_in_seconds
     logging.info('Taking {} shots...'.format(count))
     Data.totalPhotos = count
@@ -184,7 +195,7 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
 
     with picamera.PiCamera() as camera:
         camera.start_preview()
-        camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance)
+        camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance, width, height)
         time.sleep(2)
         for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
             Data.currentPhoto+=1
@@ -200,3 +211,4 @@ def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutte
     Data.totalPhotos = 0
     Data.currentPhoto = 0
     db.close()
+    make_video(dateTimelapse)

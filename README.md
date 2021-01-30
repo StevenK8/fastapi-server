@@ -44,6 +44,16 @@ http://192.168.1.21:8000/docs
 curl https://rclone.org/install.sh | sudo bash
 ```
 
+```bash
+*/5 * * * * rclone move /home/pi/camera/ timelapse:/home/timelapse/photos --delete-empty-src-dirs &
+```
+
+## Vidéo
+
+```bash
+ffmpeg -framerate 30 -pattern_type glob -i "*.jpg" -s:v 1920x1080 -c:v libx264 -crf 17 -pix_fmt yuv420p timelapse_${PWD##*/}.mp4
+```
+
 
 ## Documentation de FastAPI
 
@@ -56,3 +66,10 @@ curl https://rclone.org/install.sh | sudo bash
 ```bash
 sudo apt install python-mysqldb
 ```
+
+## Crontab
+
+```bash
+*/5 * * * * python3 /home/pi/Timelapse/logger-temp-hum.py &> /dev/null
+```
+
