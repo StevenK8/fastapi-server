@@ -129,6 +129,8 @@ networks:
 
 ```bash
 pip3 install pymysql
+
+pip3 install aiofiles
 ```
 
 
