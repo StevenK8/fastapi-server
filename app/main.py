@@ -1,53 +1,25 @@
-from typing import Optional
-from fastapi import FastAPI, Security, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Security, Depends, HTTPException
+import io
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
+from starlette.responses import StreamingResponse, RedirectResponse, JSONResponse
 from starlette.status import HTTP_403_FORBIDDEN
-from starlette.responses import RedirectResponse, JSONResponse
-from pydantic import BaseModel
-# import adafruit_dht
-# import board
-import subprocess
-import MySQLdb
-import os
-import time
 import logging
-import picamera
-from datetime import datetime
-from time import sleep
+import pymysql
 
 # Variables globales
-API_KEY = "!$j;,=QzViep^\ZP~9_pWg[[{8p*3d9ZP9NxxB5XFDNpB5Btv~"
+API_KEY = "F><aw;v)9H4JRY=4#g@}YN68b$%6!j9F8g=V2^Kr^8s:([N7(]"
 API_KEY_NAME = "access_token"
-COOKIE_DOMAIN = "ryzen.ddns.net"
+COOKIE_DOMAIN = "stevenkerautret.eu"
 
 
 api_key_query = APIKeyQuery(name=API_KEY_NAME, auto_error=False)
 api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
 api_key_cookie = APIKeyCookie(name=API_KEY_NAME, auto_error=False)
 
+
 app = FastAPI()
 
 logging.basicConfig(format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S', level=logging.INFO)
-
-__output_folder_name__= '/home/pi/camera/'
-
-__default_rotation__ = 0
-
-# dhtDevice = adafruit_dht.DHT22(board.D18)
-
-class Item(BaseModel):
-    name: str
-    price: float
-    is_offer: Optional[bool] = None
-
-class Data():
-    currentPhoto : int = 0
-    totalPhotos : int = 0
-    stopTimelapse : bool = False
-
-#  Fonctions
-
-# Fonctions associées à FastAPI
 
 async def get_api_key(
     api_key_query: str = Security(api_key_query),
@@ -70,145 +42,49 @@ async def get_api_key(
 def read_root():
     return {"Hello": "World"}
 
-
-
 @app.get("/items/{item_id}")
-def read_item(item_id: int, q: Optional[str] = None):
-    return {"item_id": item_id, "q": q}
+def read_item(item_id: int, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    return {"item_id": item_id}
 
-
-@app.put("/timelapse/items/{item_id}")
-def update_item(item_id: int, item: Item):
-    return {"item_name": item.name, "item_id": item_id}
-
-
-@app.get("/timelapse/start/", tags=["timelapse"])
-async def start_timelapse(background_tasks: BackgroundTasks, api_key: APIKey = Depends(get_api_key), access_token : str = None, length_in_seconds: int = 1, interval_in_seconds: int = 1, rotation: int = 0, iso : int = 0, shutter_speed : int = 0, autoWhiteBalance : bool = True, description_album : str = "Aucune", width : int = 2592, height : int = 1944):
-    if(Data.currentPhoto==0):
-        start_time = time.time()
-        # Take pictures
-        Data.stopTimelapse = False
-        background_tasks.add_task(capture_images ,length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album, width, height)
-        return "Timelapse demarre"
-    else:
-        return "Timelapse deja en cours."
-
-
-@app.get("/timelapse/status/", tags=["timelapse"])
-def is_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    if (Data.currentPhoto>0):
-        return {"Photo N°": Data.currentPhoto, "Total de photos": Data.totalPhotos}
-    else:
-        return 0
-
-
-@app.get("/timelapse/stop/", tags=["timelapse"])
-def stop_timelapse(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    Data.stopTimelapse = True
-    return "Timelapse arrete"
-
-# @app.get("/dht/value/", tags=["dht"])
-# def get_th_value(api_key: APIKey = Depends(get_api_key), access_token : str = None):
-#     try:
-#         # Print the values to the serial port
-#         temperature_c = dhtDevice.temperature
-#         humidity = dhtDevice.humidity
-#         return(
-#             "Température: {:.1f}°C    Humidité: {}% ".format(
-#                 temperature_c, humidity
-#             )
-#         )
- 
-#     except RuntimeError as error:
-#         # Errors happen fairly often, DHT's are hard to read, just keep going
-#         return(error.args[0])
-#         time.sleep(2.0)
-#     except Exception as error:
-#         dhtDevice.exit()
-#         raise error
-
-# Fonctions de Timelapse
-
-def create_album_db(description_album, db):
-    dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cur = db.cursor()
-    cur.execute("INSERT INTO albums(description, date) VALUES ('"+str(description_album)+"','"+dt+"')")
-    album = cur.lastrowid 
-    db.commit()
-    cur.close()
-    del cur
-    return album
-
-def send_photo_to_db(filename, album, db):
-    # photo = read_file(filename)
-    dt = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    cur = db.cursor()
-    sql = "INSERT INTO photos(id_capteur, id_album, nom, measuredate) VALUES ('1',%s,%s,%s)"
-    names = filename.split("/")
-    args = (str(album), str(names[4]+'/'+names[5]),dt, )
-    cur.execute(sql,args)
-    db.commit()
-    cur.close()
-    del cur
-
-def read_file(filename):
-    with open(filename, 'rb') as f:
-        photo = f.read()
-    return photo
+@app.post("/vector_image")
+def image_endpoint(*, vector):
+    # Returns a cv2 image array from the document vector
+    cv2img = my_function(vector)
+    res, im_png = cv2.imencode(".png", cv2img)
+    return StreamingResponse(io.BytesIO(im_png.tobytes()), media_type="image/png")
 
 def connect_db():
-    return MySQLdb.connect(host='ryzen.ddns.net',user='timelapse', passwd='9_7b:r%HR-G%y@*U;>*3KDrU!-v,65U]Wq6H.xT5G}uiPAE}8k', db='timelapse')
+    return pymysql.connect(host='ryzen.ddns.net',user='timelapse', passwd='9_7b:r%HR-G%y@*U;>*3KDrU!-v,65U]Wq6H.xT5G}uiPAE}8k', db='timelapse')
 
-def make_video(folder):
-    upload_photos = subprocess.Popen(["rclone", "move", "/home/pi/camera/", "timelapse:/home/timelapse/photos"])
-    upload_photos.wait()
-    subprocess.run("ssh timelapse@91.174.199.48 -p 49152 'bash /home/timelapse/photos/make_video.sh \""+folder+"\"'", shell=True, stdout=subprocess.PIPE, universal_newlines=True)
-    
-
-def camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance, width, height):
-    camera.iso = iso
-    camera.rotation = rotation
-    camera.shutter_speed = shutter_speed
-    camera.resolution = (width, height)
-
-    if(shutter_speed != 0):
-        # Sleep to allow the shutter speed to take effect correctly.
-        sleep(1)
-        camera.exposure_mode = 'off'
-
-    if(not autoWhiteBalance):
-        camera.awb_mode = 'off'
-
-    return camera
-
-def capture_images(length_in_seconds, interval_in_seconds, rotation, iso, shutter_speed, autoWhiteBalance, description_album, width, height):
-    count = length_in_seconds / interval_in_seconds
-    logging.info('Taking {} shots...'.format(count))
-    Data.totalPhotos = count
-    dateTimelapse = datetime.now().strftime("%d-%m-%Y_%H:%M:%S")
-    path = __output_folder_name__+dateTimelapse
-    if not os.path.exists(path):
-        os.makedirs(path)
-    print(path)
+@app.get("/th")
+def get_th_data(first_date, last_date, api_key: APIKey = Depends(get_api_key), access_token : str = None):
     db = connect_db()
-    album = create_album_db(description_album, db)
-
-    with picamera.PiCamera() as camera:
-        camera.start_preview()
-        camera_options(camera, iso, rotation, shutter_speed, autoWhiteBalance, width, height)
-        time.sleep(2)
-        for filename in camera.capture_continuous(__output_folder_name__+dateTimelapse+'/img{counter:06d}.jpg'):
-            Data.currentPhoto+=1
-            # names = filename.split("/")
-            # send_photo_to_db(names[4]+'/'+names[5],album,db)
-            send_photo_to_db(filename,album,db)
-            time.sleep(interval_in_seconds) # wait <interval_in_seconds> seconds
-            count -= 1
-            if count <= 0 or Data.stopTimelapse:
-                Data.stopTimelapse = False
-                break
-
-    Data.totalPhotos = 0
-    Data.currentPhoto = 0
+    cur = db.cursor()
+    cur.execute("SELECT temperature, humidity, date FROM mesures WHERE date >'"+str(first_date)+"' AND date <'"+str(last_date)+"'")
+    mesures = cur.fetchall() 
+    cur.close()
+    del cur
     db.close()
-    make_video(dateTimelapse)
+    return mesures
+
+@app.get("/albums")
+def get_albums(first_date, last_date, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, description, date FROM albums WHERE date >'"+str(first_date)+"' AND date <'"+str(last_date)+"'")
+    mesures = cur.fetchall() 
+    cur.close()
+    del cur
+    db.close()
+    return mesures
+
+@app.get("/photos")
+def get_albums(first_date, last_date, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, description, date FROM albums WHERE date >'"+str(first_date)+"' AND date <'"+str(last_date)+"'")
+    mesures = cur.fetchall() 
+    cur.close()
+    del cur
+    db.close()
+    return mesures
