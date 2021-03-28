@@ -144,6 +144,11 @@ pip3 install aiofiles
 
 ```bash
 sudo apt install python-mysqldb
+
+
+docker exec -it fastapi bash
+
+python3 -m pip install PyMySQL
 ```
 
 ## Crontab
