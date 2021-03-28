@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Security, Depends, HTTPException
-import io
+import io, os, zipfile
 from fastapi.security.api_key import APIKeyQuery, APIKeyCookie, APIKeyHeader, APIKey
-from starlette.responses import StreamingResponse, RedirectResponse, JSONResponse
+from starlette.responses import StreamingResponse, RedirectResponse, JSONResponse, FileResponse, Response
 from starlette.status import HTTP_403_FORBIDDEN
 import logging
 import pymysql
@@ -42,10 +42,6 @@ async def get_api_key(
 def read_root():
     return {"Hello": "World"}
 
-@app.get("/items/{item_id}")
-def read_item(item_id: int, api_key: APIKey = Depends(get_api_key), access_token : str = None):
-    return {"item_id": item_id}
-
 @app.post("/vector_image")
 def image_endpoint(*, vector):
     # Returns a cv2 image array from the document vector
@@ -79,12 +75,33 @@ def get_albums(first_date, last_date, api_key: APIKey = Depends(get_api_key), ac
     return mesures
 
 @app.get("/photos")
-def get_albums(first_date, last_date, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : str = None):
     db = connect_db()
     cur = db.cursor()
-    cur.execute("SELECT id, description, date FROM albums WHERE date >'"+str(first_date)+"' AND date <'"+str(last_date)+"'")
-    mesures = cur.fetchall() 
+    cur.execute("SELECT nom, measuredate  FROM photos WHERE id_album like "+str(id_album))
+    photos = cur.fetchall() 
     cur.close()
     del cur
     db.close()
-    return mesures
+
+    path = "/photos/remote/"
+    zip_filename=photos[0][0].split("/")[0]+".zip"
+    s = io.BytesIO()
+    zf = zipfile.ZipFile(s, "w")
+
+    photoTab = []
+    
+    for p in photos:
+        file_path = os.path.join(path, p[0])
+        # if os.path.exists(file_path):
+        zf.write(file_path, p[0].split("/")[1])
+        # photoTab.append(FileResponse(file_path, media_type="image/jpeg", filename=p[0].split("/")[1]))
+
+        # photoTab.append(FileResponse("/photos/remote/"+p[0], media_type="image/jpeg"))
+    zf.close()
+
+    resp = Response(s.getvalue(), media_type="application/x-zip-compressed", headers={
+        'Content-Disposition': f'attachment;filename={zip_filename}'
+    })
+
+    return resp
