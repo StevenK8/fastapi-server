@@ -42,13 +42,6 @@ async def get_api_key(
 def read_root():
     return {"Hello": "World"}
 
-@app.post("/vector_image")
-def image_endpoint(*, vector):
-    # Returns a cv2 image array from the document vector
-    cv2img = my_function(vector)
-    res, im_png = cv2.imencode(".png", cv2img)
-    return StreamingResponse(io.BytesIO(im_png.tobytes()), media_type="image/png")
-
 def connect_db():
     return pymysql.connect(host='ryzen.ddns.net',user='timelapse', passwd='9_7b:r%HR-G%y@*U;>*3KDrU!-v,65U]Wq6H.xT5G}uiPAE}8k', db='timelapse')
 
@@ -64,15 +57,45 @@ def get_th_data(first_date, last_date, api_key: APIKey = Depends(get_api_key), a
     return mesures
 
 @app.get("/albums")
-def get_albums(first_date, last_date, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+def get_albums(api_key: APIKey = Depends(get_api_key), access_token : str = None):
     db = connect_db()
     cur = db.cursor()
-    cur.execute("SELECT id, description, date FROM albums WHERE date >'"+str(first_date)+"' AND date <'"+str(last_date)+"'")
+    cur.execute("SELECT id, description, date FROM albums")
     mesures = cur.fetchall() 
     cur.close()
     del cur
     db.close()
     return mesures
+
+@app.get("/firstphoto")
+def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("SELECT nom, measuredate FROM photos WHERE id_album like "+str(id_album)+" ORDER BY nom LIMIT 1")
+    photos = cur.fetchone() 
+    cur.close()
+    del cur
+    db.close()
+
+    path = "/photos/remote/"
+
+    return FileResponse(path+photos[0], media_type="image/jpeg")
+
+
+@app.get("/video")
+def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("SELECT nom, measuredate FROM photos WHERE id_album like "+str(id_album)+" LIMIT 1")
+    photos = cur.fetchone() 
+    cur.close()
+    del cur
+    db.close()
+
+    path = "/photos/remote/"
+    filename = photos[0].split("/")[0]+"/timelapse_"+photos[0].split("/")[0]+".mp4"
+
+    return FileResponse(path+filename, media_type="video/mp4")
 
 @app.get("/photos")
 def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : str = None):
