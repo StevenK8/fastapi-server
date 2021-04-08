@@ -128,3 +128,22 @@ def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : 
     })
 
     return resp
+
+@app.get("/photos2")
+def get_albums(id_album, api_key: APIKey = Depends(get_api_key), access_token : str = None):
+    db = connect_db()
+    cur = db.cursor()
+    cur.execute("SELECT nom, measuredate  FROM photos WHERE id_album like "+str(id_album)+" LIMIT 1")
+    photos = cur.fetchone() 
+    cur.close()
+    del cur
+    db.close()
+
+    path = "/photos/remote/"
+    zip_filename=photos[0][0].split("/")[0]+".zip"
+    
+    resp = Response(s.getvalue(), media_type="application/x-zip-compressed", headers={
+        'Content-Disposition': f'attachment;filename={zip_filename}'
+    })
+
+    return resp
