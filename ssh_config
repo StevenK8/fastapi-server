@@ -1,0 +1,6 @@
+Match User tunnel
+  AllowTcpForwarding yes
+  PermitOpen *:8000
+  X11Forwarding no
+  AllowAgentForwarding no
+  GatewayPorts yes
